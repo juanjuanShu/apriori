@@ -1,0 +1,5 @@
+﻿  apriori.cpp
+C:\Users\shujuanjuan\source\repos\apriori\apriori\apriori.cpp(73,33): error C2371: “C1”: 重定义；不同的基类型
+C:\Users\shujuanjuan\source\repos\apriori\apriori\apriori.cpp(72): message : 参见“C1”的声明
+C:\Users\shujuanjuan\source\repos\apriori\apriori\apriori.cpp(74,43): error C2371: “C1”: 重定义；不同的基类型
+C:\Users\shujuanjuan\source\repos\apriori\apriori\apriori.cpp(72): message : 参见“C1”的声明
