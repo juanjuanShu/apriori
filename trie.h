@@ -3,62 +3,44 @@
 using namespace std;
 using ItemSet = vector<string>;
 
-struct TrieNode {
-    //Hashmap 的键是字符，值是相对应的子节点
-    //比使用数组稍微慢一些 但是只存储需要的节点 因此更灵活 也节省空间
-    unordered_map<string, TrieNode*> next;
-};
-
-class Trie {
+class TrieNode {
 public:
-   //构造函数
-    Trie() {
-        root = new TrieNode();
-    }
+    TrieNode() = default;
+    TrieNode(const TrieNode&) = delete;
 
-    /** Inserts a word into the trie. */
-    void insert(const ItemSet& item) {
-        TrieNode* p = root;
-        for (int i = 0; i < item.size(); ++i) {
-            if ((p->next).count(item[i]) <= 0) {
-                // insert a new node if the path does not exist
-                (p->next).insert(make_pair(item[i], new TrieNode()));
-            }
-            p = (p->next)[item[i]];
-        }
-    }
+    void insert(string key);
+    void insert(const ItemSet& item);
+    TrieNode* next(string);
+    bool search(string key);
+    //bool search(const ItemSet& item);
 
-    
-    /** Returns if the word is in the trie. */
-    bool search(const ItemSet& item) {
-        TrieNode* p = root;
-        for (int i = 0; i < item.size(); ++i) {
-            if ((p->next).count(item[i]) <= 0) {
-                return false;
-            }
-            p = (p->next)[item[i]];
-        }
-        return true;
-    }
-
-    /** Returns if the key is in the trie. */
-    bool search(const string key) {
-        return next.count(key);
-    }
-
-    TrieNode*  nextPtr(const string key)
-    {
-        if (!next.count(key))
-            return nullptr;
-        return next[key];
-    }
-
-    /*析构函数*/
-    ~Trie() {
-        delete root;
-    }
 private:
-    TrieNode* root;
-    unordered_map<string, TrieNode*> next;
+    unordered_map<string, TrieNode*> hashTable;
 };
 
+void TrieNode::insert(string key) {
+    if (hashTable.count(key)) {
+        return;
+    }
+    hashTable.insert(make_pair(key, new TrieNode()));
+}
+
+void TrieNode::insert(const ItemSet& item) {
+    insert(item[0]);
+    TrieNode* p = hashTable[item[0]];
+    for (unsigned int i = 1; i < item.size(); ++i)
+    {
+        p->insert(item[i]);
+        p = p->next(item[i]);
+    }
+}
+
+bool TrieNode::search(string key) {
+    return hashTable.count(key);
+}
+
+TrieNode* TrieNode::next(string key) {
+    if (!hashTable.count(key))
+        return nullptr;
+    return hashTable[key];
+}
