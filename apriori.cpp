@@ -16,7 +16,13 @@
 using namespace std;
 using ItemSet = vector<string>;
 
+/*最小支持度计数 */
 const int min_sup_count = 2;
+/*最小置信度阈值 */
+const double min_conf = 0.7;
+/*包含所有的Lk*/
+vector<  map< ItemSet, int > > L;
+
 vector < ItemSet> loadDataset();
 map< ItemSet, int > create_L1(vector < ItemSet >& dataSet);
 TrieNode* buildHashTree(vector<ItemSet>& Ck);
@@ -115,56 +121,59 @@ vector< ItemSet > create_C2(map < ItemSet, int >& L1) {
     return C2;
 }
 
+bool is_apriori(ItemSet ProItemSet,map < ItemSet, int >& Lk) {
+    for (auto& item : Lk) {
+        if (ProItemSet == item.first) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 vector<ItemSet> create_Ck(map < ItemSet, int >& Lk, int k) {
     vector< ItemSet > Ck;
     vector< ItemSet >::iterator  it_Ck;
     /*key是(k - 1)项，value是第k项*/
     map < ItemSet, ItemSet > trie_ItemSet;
-    ItemSet::iterator it_value, it_value1;
-    string value;
+    ItemSet::iterator it_key,it_value, it_value1;
+    string lastElement;
     vector<string> key;
-    vector<string> tmp;
+    vector<string> tmp,tmp2;
 
-    //由 L(k-1)生成k项集  k-1项 0~k-2
     if (k == 2) {
-        Ck = create_C2(Lk);
+        return create_C2(Lk);
     }
-    else {
-        for (auto &item:Lk) {
-            tmp = item.first;
-            value = tmp[k - 2];
-            tmp.pop_back();         
-            if (trie_ItemSet.find(tmp) == trie_ItemSet.end()) {
-                trie_ItemSet.insert({ tmp,{value} });
-            }
-            else {
-                trie_ItemSet[tmp].push_back(value);
-            }
+  
+    //用前缀项存储
+    for (auto& item : Lk) {
+        tmp = item.first;
+        lastElement = *(tmp.end() - 1);
+        tmp.pop_back();
+        if (trie_ItemSet.find(tmp) == trie_ItemSet.end()) {
+            trie_ItemSet.insert({ tmp,{lastElement} });
         }
-        //连接的时候剪枝 {1:2,3,5}
-        //2,3,5按照字典序组合 判断这个结果在(k - 1)项频繁集中是否出现，未出现则剪枝
-        //合并
-        for (auto &item: trie_ItemSet) {
-            key = item.first;
-            for (it_value = (item.second).begin(); it_value != (item.second).end() - 1; it_value++) {
-                for (it_value1 = it_value + 1; it_value1 != (item.second).end(); it_value1++) {
-                    tmp = { *it_value ,*it_value1 };
-                    //if(is_apriori(tmp))
-                    key.insert(key.end(), tmp.begin(), tmp.end());
-                    Ck.push_back(key);
+        else {
+            trie_ItemSet[tmp].push_back(lastElement);
+        }
+    }
+
+    //连接的时候剪枝 {1:2,3,5}
+    //2,3,5按照字典序组合 判断这个结果在(k - 1)项频繁集中是否出现，未出现则剪枝;否则合并
+    for (auto& item : trie_ItemSet) {
+        key = item.first;
+        for (it_value = (item.second).begin(); it_value != (item.second).end() - 1; it_value++) {
+            for (it_value1 = it_value + 1; it_value1 != (item.second).end(); it_value1++) {
+                tmp = { *it_value ,*it_value1 };
+                if (is_apriori(tmp, Lk)) {
+                    tmp2 = key;
+                    tmp2.push_back(*it_value);
+                    tmp2.push_back(*it_value1);
+                    Ck.push_back(tmp2);
                 }
             }
         }
-
-       /* cout << "第" << k << endl;
-        for (it_Ck = Ck.begin(); it_Ck != Ck.end(); it_Ck++) {
-            for (it_value = (*it_Ck).begin(); it_value != (*it_Ck).end() - 1; it_value++) {
-                cout << *it_value << " ";
-            }
-            cout << endl;
-         }
-        cout << "=====" << endl;*/
-     }
+    }
  
     return Ck;
 }
@@ -230,23 +239,16 @@ void generate_Lk(vector < ItemSet >& dataSet) {
     map < ItemSet, int > Lk;
    /* k候选项集*/
     vector<ItemSet> Ck;
-    /*包含所有的Lk*/
-    vector<  map< ItemSet, int > > L;
-
+   
     L1 = create_L1(dataSet);
     L.push_back(L1);
     int k = 1;
     while (L[k - 1].size() > 0) {
-        //产生候选集
         Ck = create_Ck(L[k - 1], k + 1);
         Lk = generateKFrequentSet(Ck, dataSet, k + 1);
         if (!empty(Lk)) {
             L.push_back(Lk);
             k++;
-            cout <<"第"<< k << endl;
-            for (auto& w : Lk) {
-                cout << w.second << endl;
-            }
         }
         else {
             break;
@@ -254,10 +256,18 @@ void generate_Lk(vector < ItemSet >& dataSet) {
     }
 }
 
+void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf) {
+    cout << L.size();
+    //L[1]存储的是二项集
+    for (int i = 1; i <= L.size(); i++) {
+
+    }
+}
 int main()
 {
     vector < ItemSet > dataSet;
     dataSet = loadDataset();
     generate_Lk(dataSet);
+    generate_associate_rules(L,min_conf);
 }
 
