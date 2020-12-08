@@ -22,6 +22,12 @@ const int min_sup_count = 2;
 const double min_conf = 0.7;
 /*包含所有的Lk*/
 vector<  map< ItemSet, int > > L;
+/*规则 */
+struct Rule {
+    ItemSet antecedent;
+    ItemSet consequent;
+    double conf;
+};
 
 vector < ItemSet> loadDataset();
 map< ItemSet, int > create_L1(vector < ItemSet >& dataSet);
@@ -256,12 +262,46 @@ void generate_Lk(vector < ItemSet >& dataSet) {
     }
 }
 
-void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf) {
-    cout << L.size();
-    //L[1]存储的是二项集
-    for (int i = 1; i <= L.size(); i++) {
+void generateRuleByItemset(ItemSet itemSet, vector<ItemSet> consequentSet,int consequent_num,int i ,int itemLength) {
+    //前件至少有1个，前件加后件如果小于当前事务，则无法生成
+    double conf;
+    ItemSet consequent;
+    ItemSet antecedent;
+    if (consequent_num + 1 > itemLength) return;
+    
+    int antecedent_num = itemLength - consequent_num - 1;
+    for (int j = 0; j < consequentSet.size(); j++)
+    {
+        consequent = consequentSet[j];
+        set_difference(itemSet.begin(), itemSet.end(), consequent.begin(), consequent.end(), std::back_inserter(antecedent));
+        conf = (L[i])[itemSet] * 1.0 / (L[i])[antecedent];
+        cout << (L[i])[itemSet] << endl;
+        cout << (L[i])[antecedent] << endl;
+        cout << conf << endl;
+        cout << "====" << endl;
+       /* if (conf >= min_conf) {
 
+        }*/
     }
+    
+}
+void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf) {
+    //L[1]存储的是二项集
+    int k = 1;
+    vector<ItemSet> consequentSet;
+    
+    for (int i = 1; i < L.size(); i++) {
+        for (auto& itemSet : L[i]) {
+            //规则的1-项后件
+            for (auto& item : (itemSet.first)) {
+                consequentSet.push_back({ item });
+            }
+            generateRuleByItemset(itemSet.first, consequentSet,1,i,i+1);
+            /*break;*/
+        }
+    }
+
+    
 }
 int main()
 {
