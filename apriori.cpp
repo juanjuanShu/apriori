@@ -262,30 +262,61 @@ void generate_Lk(vector < ItemSet >& dataSet) {
     }
 }
 
-void generateRuleByItemset(ItemSet itemSet, vector<ItemSet> consequentSet,int consequent_num,int i ,int itemLength) {
-    //前件至少有1个，前件加后件如果小于当前事务，则无法生成
+vector<ItemSet> apriori_gen(vector<ItemSet>& consequentSet,int i ) {
+     vector<ItemSet>::iterator it_cs,it_cs1;
+     vector<string> combItem;
+     set<ItemSet> tmpSet;
+     vector<ItemSet> consequentNewSet;
+     
+    for (it_cs = consequentSet.begin(); it_cs != consequentSet.end() - 1; it_cs++) {
+        for (it_cs1 = (it_cs)+1; it_cs1 != consequentSet.end(); it_cs1++) {
+           //bc bd=>bcd bd cd=>bcd
+            combItem = {};
+            set_union((*it_cs).begin(),(*it_cs).end(), (*it_cs1).begin(), (*it_cs1).end(), back_inserter(combItem));
+            if (combItem.size() == (*it_cs).size() + 1) {
+                tmpSet.insert(combItem);
+            }
+        }
+    }
+    consequentNewSet.assign(tmpSet.begin(), tmpSet.end());
+
+    return consequentNewSet;
+}
+
+void generateRuleByItemset(const ItemSet &itemSet, vector<ItemSet> &consequentSet,int consequent_num,int i ,int itemLength) {
+   
     double conf;
     ItemSet consequent;
     ItemSet antecedent;
+    vector<ItemSet> consequentNewSet;
     int antecedent_num;
-
+    //前件至少有1个，前件加后件如果小于当前事务，则无法生成
     if (consequent_num + 1 > itemLength) return;
-   
-    for (int j = 0; j < consequentSet.size(); j++)
-    {
-        antecedent = {};
-        consequent = consequentSet[j];
-        set_difference(itemSet.begin(), itemSet.end(), consequent.begin(), consequent.end(), std::back_inserter(antecedent));
-        antecedent_num = antecedent.size() - 1;
-        conf = (L[i][itemSet]) * 1.0 / (L[antecedent_num][antecedent]);
-        cout << conf << endl;
-    }
+    consequentNewSet = apriori_gen(consequentSet);
+
+    //for (int j = 0; j < consequentNewSet.size(); j++)
+    //{
+    //    antecedent = {};
+    //    consequent = consequentNewSet[j];
+    //    set_difference(itemSet.begin(), itemSet.end(), consequent.begin(), consequent.end(), std::back_inserter(antecedent));
+    //    antecedent_num = antecedent.size() - 1;
+    //    conf = (L[i][itemSet]) * 1.0 / (L[antecedent_num][antecedent]);
+    //    if (conf >= min_conf) {
+    //        //保留结果
+    //        cout << conf << endl;
+    //        //进行下一次循环
+    //       
+    //    }
+    //    else {
+
+    //    }
+    //}
+
 }
 void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf) {
-    //L[1]存储的是二项集
-    int k = 1;
     vector<ItemSet> consequentSet;
-    
+
+    //L[1]存储的是二项集
     for (int i = 1; i < L.size(); i++) {
        
         for (auto& itemSet : L[i]) {
@@ -295,8 +326,8 @@ void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min
                 consequentSet.push_back({ item });
             }
             generateRuleByItemset(itemSet.first, consequentSet,1,i,i+1);
-           
         }
+        break;
     }
 }
 int main()
