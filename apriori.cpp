@@ -267,23 +267,19 @@ void generateRuleByItemset(ItemSet itemSet, vector<ItemSet> consequentSet,int co
     double conf;
     ItemSet consequent;
     ItemSet antecedent;
+    int antecedent_num;
+
     if (consequent_num + 1 > itemLength) return;
-    
-    int antecedent_num = itemLength - consequent_num - 1;
+   
     for (int j = 0; j < consequentSet.size(); j++)
     {
+        antecedent = {};
         consequent = consequentSet[j];
         set_difference(itemSet.begin(), itemSet.end(), consequent.begin(), consequent.end(), std::back_inserter(antecedent));
-        conf = (L[i])[itemSet] * 1.0 / (L[i])[antecedent];
-        cout << (L[i])[itemSet] << endl;
-        cout << (L[i])[antecedent] << endl;
+        antecedent_num = antecedent.size() - 1;
+        conf = (L[i][itemSet]) * 1.0 / (L[antecedent_num][antecedent]);
         cout << conf << endl;
-        cout << "====" << endl;
-       /* if (conf >= min_conf) {
-
-        }*/
     }
-    
 }
 void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf) {
     //L[1]存储的是二项集
@@ -291,17 +287,17 @@ void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min
     vector<ItemSet> consequentSet;
     
     for (int i = 1; i < L.size(); i++) {
+       
         for (auto& itemSet : L[i]) {
+            consequentSet = {};
             //规则的1-项后件
             for (auto& item : (itemSet.first)) {
                 consequentSet.push_back({ item });
             }
             generateRuleByItemset(itemSet.first, consequentSet,1,i,i+1);
-            /*break;*/
+           
         }
     }
-
-    
 }
 int main()
 {
