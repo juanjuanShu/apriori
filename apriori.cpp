@@ -19,7 +19,7 @@ using ItemSet = vector<string>;
 /*最小支持度计数 */
 const int min_sup_count = 2;
 /*最小置信度阈值 */
-const double min_conf = 0.7;
+const double min_conf = 0.4;
 /*包含所有的Lk*/
 vector<  map< ItemSet, int > > L;
 /*规则 */
@@ -262,7 +262,7 @@ void generate_Lk(vector < ItemSet >& dataSet) {
     }
 }
 
-vector<ItemSet> apriori_gen(vector<ItemSet>& consequentSet,int i ) {
+vector<ItemSet> apriori_gen(vector<ItemSet>& consequentSet) {
      vector<ItemSet>::iterator it_cs,it_cs1;
      vector<string> combItem;
      set<ItemSet> tmpSet;
@@ -278,47 +278,55 @@ vector<ItemSet> apriori_gen(vector<ItemSet>& consequentSet,int i ) {
             }
         }
     }
+    //set转vector
     consequentNewSet.assign(tmpSet.begin(), tmpSet.end());
 
     return consequentNewSet;
 }
 
+//i是L[i]的下标
 void generateRuleByItemset(const ItemSet &itemSet, vector<ItemSet> &consequentSet,int consequent_num,int i ,int itemLength) {
    
     double conf;
     ItemSet consequent;
     ItemSet antecedent;
     vector<ItemSet> consequentNewSet;
+    vector<ItemSet>::iterator it;
     int antecedent_num;
-    //前件至少有1个，前件加后件如果小于当前事务，则无法生成
+
+    //前件至少有1个，前件加后件如果大于当前事务，则无法生成
     if (consequent_num + 1 > itemLength) return;
-    consequentNewSet = apriori_gen(consequentSet);
+    
+    for (it = consequentSet.begin();it != consequentSet.end();)
+    {
+        antecedent = {};
+        consequent = (*it);
+        //itemSet - consequent = antecedent
+        set_difference(itemSet.begin(), itemSet.end(), consequent.begin(), consequent.end(), std::back_inserter(antecedent));
+        antecedent_num = antecedent.size() - 1;
+        conf = (L[i][itemSet]) * 1.0 / (L[antecedent_num][antecedent]);
+        if (conf >= min_conf) {
+           //TODO:保留结果
+            cout << conf << endl;
+            ++it;
+        }
+        else {
+            //如果bcd=>a置信度不满足，则剪枝；即从后件项集中删除该元素
+           it = consequentSet.erase(it);
+        }
+    }
 
-    //for (int j = 0; j < consequentNewSet.size(); j++)
-    //{
-    //    antecedent = {};
-    //    consequent = consequentNewSet[j];
-    //    set_difference(itemSet.begin(), itemSet.end(), consequent.begin(), consequent.end(), std::back_inserter(antecedent));
-    //    antecedent_num = antecedent.size() - 1;
-    //    conf = (L[i][itemSet]) * 1.0 / (L[antecedent_num][antecedent]);
-    //    if (conf >= min_conf) {
-    //        //保留结果
-    //        cout << conf << endl;
-    //        //进行下一次循环
-    //       
-    //    }
-    //    else {
-
-    //    }
-    //}
-
+    if (!empty(consequentSet)) {
+        consequentNewSet = apriori_gen(consequentSet);
+        generateRuleByItemset(itemSet, consequentNewSet, consequent_num + 1, i, itemLength);
+    }
 }
+
 void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf) {
     vector<ItemSet> consequentSet;
 
     //L[1]存储的是二项集
     for (int i = 1; i < L.size(); i++) {
-       
         for (auto& itemSet : L[i]) {
             consequentSet = {};
             //规则的1-项后件
@@ -327,9 +335,9 @@ void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min
             }
             generateRuleByItemset(itemSet.first, consequentSet,1,i,i+1);
         }
-        break;
     }
 }
+
 int main()
 {
     vector < ItemSet > dataSet;
