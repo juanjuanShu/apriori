@@ -19,7 +19,7 @@ using ItemSet = vector<string>;
 /*最小支持度计数 */
 const int min_sup_count = 2;
 /*最小置信度阈值 */
-const double min_conf = 0.4;
+const double min_conf = 0.1;
 /*包含所有的Lk*/
 vector<  map< ItemSet, int > > L;
 /*规则 */
@@ -285,7 +285,7 @@ vector<ItemSet> apriori_gen(vector<ItemSet>& consequentSet) {
 }
 
 //i是L[i]的下标
-void generateRuleByItemset(const ItemSet &itemSet, vector<ItemSet> &consequentSet,int consequent_num,int i ,int itemLength) {
+void generateRuleByItemset(const ItemSet &itemSet, vector<ItemSet> &consequentSet, vector<Rule> &ans, int consequent_num,int i ,int itemLength) {
    
     double conf;
     ItemSet consequent;
@@ -305,9 +305,10 @@ void generateRuleByItemset(const ItemSet &itemSet, vector<ItemSet> &consequentSe
         set_difference(itemSet.begin(), itemSet.end(), consequent.begin(), consequent.end(), std::back_inserter(antecedent));
         antecedent_num = antecedent.size() - 1;
         conf = (L[i][itemSet]) * 1.0 / (L[antecedent_num][antecedent]);
+        conf = round(conf * 100) / 100.0;
         if (conf >= min_conf) {
            //TODO:保留结果
-            cout << conf << endl;
+            ans.push_back(Rule{ antecedent, consequent, conf });
             ++it;
         }
         else {
@@ -318,13 +319,13 @@ void generateRuleByItemset(const ItemSet &itemSet, vector<ItemSet> &consequentSe
 
     if (!empty(consequentSet)) {
         consequentNewSet = apriori_gen(consequentSet);
-        generateRuleByItemset(itemSet, consequentNewSet, consequent_num + 1, i, itemLength);
+        generateRuleByItemset(itemSet, consequentNewSet, ans, consequent_num + 1, i, itemLength);
     }
 }
 
-void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf) {
+vector<Rule>  generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf) {
     vector<ItemSet> consequentSet;
-
+    vector<Rule> ans;
     //L[1]存储的是二项集
     for (int i = 1; i < L.size(); i++) {
         for (auto& itemSet : L[i]) {
@@ -333,8 +334,44 @@ void generate_associate_rules(vector<  map< ItemSet, int > > L, const double min
             for (auto& item : (itemSet.first)) {
                 consequentSet.push_back({ item });
             }
-            generateRuleByItemset(itemSet.first, consequentSet,1,i,i+1);
+            generateRuleByItemset(itemSet.first,consequentSet, ans,1,i,i+1);
         }
+    }
+
+    return ans;
+}
+
+void  visualization(const vector<Rule> &rules) {
+    ItemSet antecedent;
+    ItemSet consequent;
+
+    for (auto& rule : rules)
+    {
+        antecedent = rule.antecedent;
+        for (auto& item : antecedent) {
+            cout << item ;
+            int size = antecedent.size() - 1;
+            if(item == antecedent[size])
+                cout << " ";
+            else
+                cout << "^";
+        } 
+
+        cout << " => ";
+
+        consequent = rule.consequent;
+        for (auto& item : consequent) {
+            cout << item;
+            int size = consequent.size() - 1;
+            if (item == consequent[size])
+                cout << " ";
+            else
+                cout << "^";
+        }
+
+        cout << "   confidence  : " << rule.conf;
+
+        cout << endl;
     }
 }
 
@@ -343,6 +380,7 @@ int main()
     vector < ItemSet > dataSet;
     dataSet = loadDataset();
     generate_Lk(dataSet);
-    generate_associate_rules(L,min_conf);
+    vector<Rule> rules = generate_associate_rules(L,min_conf);
+    visualization(rules);
 }
 
