@@ -7,19 +7,25 @@
 #include <iostream>
 #include <set>
 #include <vector>
-
+#include <fstream>
 #include<algorithm>
 #include <unordered_map>
 #include <map>
 #include "trie.h"
+#include <string>
+#include <sstream>
+#include <chrono>
 
 using namespace std;
+using std::chrono::high_resolution_clock;
+using std::chrono::milliseconds;
+
 using ItemSet = vector<string>;
 
 /*最小支持度计数 */
 const int min_sup_count = 2;
 /*最小置信度阈值 */
-const double min_conf = 0.1;
+const double min_conf = 0.7;
 /*包含所有的Lk*/
 vector<  map< ItemSet, int > > L;
 /*规则 */
@@ -38,8 +44,26 @@ void calculateSupportCount(map < ItemSet, int >& Lk, const ItemSet& trans, int k
 vector < ItemSet> loadDataset()
 {
     vector < ItemSet > dataSet;
+    string filePath = "retail.dat";
+
+    ifstream fs(filePath, ios::in);
+    string line;
+    int i = 0;
+    while (getline(fs,line)) {
+        if (line.back() == '\n') line.pop_back(); // pop back the enter.
+
+        ItemSet itemset;
+        stringstream strm(line);
+        string item;
+        while (strm >> item) {
+           itemset.push_back(move(item));
+        }
+
+        sort(itemset.begin(), itemset.end());
+       dataSet.push_back(move(itemset));
+    }
     //!!!数据必须按照字典序排序
-    ItemSet s1 = { "I1","I2","I5" };
+    /*ItemSet s1 = { "I1","I2","I5" };
     ItemSet s2 = { "I2","I4" };
     ItemSet s3 = { "I2","I3" };
     ItemSet s4 = { "I1","I2","I4" };
@@ -57,7 +81,7 @@ vector < ItemSet> loadDataset()
     dataSet.push_back(s6);
     dataSet.push_back(s7);
     dataSet.push_back(s8);
-    dataSet.push_back(s9);
+    dataSet.push_back(s9);*/
 
     return dataSet;
 }
@@ -378,9 +402,18 @@ void  visualization(const vector<Rule> &rules) {
 int main()
 {
     vector < ItemSet > dataSet;
+   
     dataSet = loadDataset();
+
+    high_resolution_clock::time_point beginTime = high_resolution_clock::now();
+
     generate_Lk(dataSet);
     vector<Rule> rules = generate_associate_rules(L,min_conf);
     visualization(rules);
+
+    high_resolution_clock::time_point endTime = high_resolution_clock::now();
+    milliseconds timeInterval = std::chrono::duration_cast<milliseconds>(endTime - beginTime);
+    std::cout << timeInterval.count() << "ms\n";
+    return 0;
 }
 
