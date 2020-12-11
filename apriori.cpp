@@ -23,7 +23,7 @@ using std::chrono::milliseconds;
 using ItemSet = vector<string>;
 
 /*最小支持度计数 */
-const int min_sup_count = 2;
+const double min_sup_rate = 0.6;
 /*最小置信度阈值 */
 const double min_conf = 0.7;
 /*包含所有的Lk*/
@@ -35,33 +35,34 @@ struct Rule {
     double conf;
 };
 
-vector < ItemSet> loadDataset();
-map< ItemSet, int > create_L1(vector < ItemSet >& dataSet);
+map< ItemSet, int > create_L1(vector < ItemSet >& dataSet, int min_sup_count);
+vector< ItemSet > create_C2(map < ItemSet, int >& L1);
 TrieNode* buildHashTree(vector<ItemSet>& Ck);
-void calculateSupportCount(map < ItemSet, int >& Lk, const ItemSet& trans, int k, TrieNode* hashTree, int remainder, int lastPos);
+vector<Rule>  generate_associate_rules(vector<  map< ItemSet, int > > L, const double min_conf);
+void visualization(const vector<Rule>& rules);
 
 //加载数据集
-vector < ItemSet> loadDataset()
+vector < ItemSet >  loadDataset(int &tranSize)
 {
-    vector < ItemSet > dataSet;
-    string filePath = "retail.dat";
-
+    vector < ItemSet >  dataSet;
+    string filePath = "mushroom.dat";
+    
     ifstream fs(filePath, ios::in);
     string line;
-    int i = 0;
-    while (getline(fs,line)) {
-        if (line.back() == '\n') line.pop_back(); // pop back the enter.
 
+    while (getline(fs,line)) {
+       if (line.back() == '\n') line.pop_back(); // pop back the enter.
         ItemSet itemset;
         stringstream strm(line);
         string item;
         while (strm >> item) {
-           itemset.push_back(move(item));
-        }
-
-        sort(itemset.begin(), itemset.end());
-       dataSet.push_back(move(itemset));
+          itemset.push_back((item));
+      }
+        tranSize++;
+       sort(itemset.begin(), itemset.end());
+        dataSet.push_back(move(itemset));
     }
+
     //!!!数据必须按照字典序排序
     /*ItemSet s1 = { "I1","I2","I5" };
     ItemSet s2 = { "I2","I4" };
@@ -86,10 +87,20 @@ vector < ItemSet> loadDataset()
     return dataSet;
 }
 
-map< ItemSet, int > create_C1(vector < ItemSet >& dataSet) {
+map< ItemSet, int >  create_Lk_by_Ck(map< ItemSet, int >& C1, int min_sup_count) {
+    map< ItemSet, int > L1;
+    for (auto &item:C1) {
+        if (item.second >= min_sup_count) {
+            L1.insert({ item.first,item.second });
+        }
+    }
+
+    return L1;
+}
+
+map< ItemSet, int > create_L1(vector < ItemSet >& dataSet,int min_sup_count) {
     map< ItemSet, int >C1;
-    map< ItemSet, int >::iterator it_C1;
-    //迭代器
+    map< ItemSet, int >L1;
     vector < ItemSet >::iterator it_data;
     ItemSet::iterator it_item;
 
@@ -105,32 +116,9 @@ map< ItemSet, int > create_C1(vector < ItemSet >& dataSet) {
         }
     }
 
-    return C1;
-}
+    L1 = create_Lk_by_Ck(C1,  min_sup_count);
 
-map< ItemSet, int > create_L1_by_C1(map< ItemSet, int >& C1) {
-    map< ItemSet, int >::iterator it_C1;
-    it_C1 = C1.begin();
-    while (it_C1 != C1.end()) {
-        if (it_C1->second < min_sup_count) {
-            C1.erase(it_C1++);
-        }
-        else {
-            it_C1++;
-        }
-    }
-
-    return C1;
-}
-
-map< ItemSet, int > create_L1(vector < ItemSet >& dataSet) {
-    map < ItemSet, int > C1;
-    map < ItemSet, int > L1;
-    //生成C1  map<项集  支持度计数>
-    C1 = create_C1(dataSet);
-    //L1
-    L1 = create_L1_by_C1(C1);
-    return C1;
+    return L1;
 }
 
 vector< ItemSet > create_C2(map < ItemSet, int >& L1) {
@@ -175,10 +163,11 @@ vector<ItemSet> create_Ck(map < ItemSet, int >& Lk, int k) {
         return create_C2(Lk);
     }
   
-    //用前缀项存储
+    //用前缀项存储 123 4 ;123 5; 123 6 => 123 456  
+    //45 46 56  =>12345 12346 12356
     for (auto& item : Lk) {
         tmp = item.first;
-        lastElement = *(tmp.end() - 1);
+        lastElement = tmp.back();
         tmp.pop_back();
         if (trie_ItemSet.find(tmp) == trie_ItemSet.end()) {
             trie_ItemSet.insert({ tmp,{lastElement} });
@@ -213,7 +202,7 @@ void calculateSupportCount(
     const ItemSet& trans,  // Transaction set
     int k,         // The length of combination would generate.
     TrieNode* p,      // Pointer to the hash tree node.
-    int remainder, // The number of vocant positions in combination.
+    unsigned int remainder, // The number of vocant positions in combination.
     int lastPos   // The last position of chosen item in itemset.
 ) {
     //如果事务中剩余位置不足 impossible
@@ -239,7 +228,7 @@ void calculateSupportCount(
     }
 }
 
-map < ItemSet, int > generateKFrequentSet(vector<ItemSet>& Ck, vector < ItemSet >& dataSet, int k) {
+map < ItemSet, int > generateKFrequentSet(vector<ItemSet>& Ck, vector < ItemSet >& dataSet, int k,int min_sup_count) {
     map < ItemSet, int > Lk;
     map < ItemSet, int >::iterator it_Lk;
 
@@ -250,7 +239,8 @@ map < ItemSet, int > generateKFrequentSet(vector<ItemSet>& Ck, vector < ItemSet 
         calculateSupportCount(Lk, trans, k, hashTree, k, -1);
     }
 
-    Lk = create_L1_by_C1(Lk);
+    Lk = create_Lk_by_Ck(Lk,min_sup_count);
+
     return Lk;
 }
 
@@ -263,21 +253,21 @@ TrieNode* buildHashTree(vector<ItemSet>& Ck) {
     return hashTree;
 }
 
-void generate_Lk(vector < ItemSet >& dataSet) {
+void generate_Lk(vector < ItemSet >& dataSet,int min_sup_count) {
     /*<k频繁项集,支持度计数>*/
     map < ItemSet, int > L1;
     map < ItemSet, int > Lk;
    /* k候选项集*/
     vector<ItemSet> Ck;
    
-    L1 = create_L1(dataSet);
-    L.push_back(L1);
-    int k = 1;
-    while (L[k - 1].size() > 0) {
+    L1 = create_L1(dataSet, min_sup_count);
+    L.push_back(move(L1));
+    size_t k = 1;
+    while (!L[k - 1].empty()) {
         Ck = create_Ck(L[k - 1], k + 1);
-        Lk = generateKFrequentSet(Ck, dataSet, k + 1);
-        if (!empty(Lk)) {
-            L.push_back(Lk);
+        Lk = generateKFrequentSet(Ck, dataSet, k + 1, min_sup_count);
+        if (!Lk.empty()) {
+            L.push_back(move(Lk));
             k++;
         }
         else {
@@ -314,14 +304,15 @@ void generateRuleByItemset(const ItemSet &itemSet, vector<ItemSet> &consequentSe
     double conf;
     ItemSet consequent;
     ItemSet antecedent;
-    vector<ItemSet> consequentNewSet;
+    vector<ItemSet> consequentNewSet = {};
+    vector<ItemSet> consequentTempSet;
     vector<ItemSet>::iterator it;
     int antecedent_num;
 
     //前件至少有1个，前件加后件如果大于当前事务，则无法生成
     if (consequent_num + 1 > itemLength) return;
-    
-    for (it = consequentSet.begin();it != consequentSet.end();)
+
+    for (it = consequentSet.begin(); it != consequentSet.end();)
     {
         antecedent = {};
         consequent = (*it);
@@ -331,17 +322,17 @@ void generateRuleByItemset(const ItemSet &itemSet, vector<ItemSet> &consequentSe
         conf = (L[i][itemSet]) * 1.0 / (L[antecedent_num][antecedent]);
         conf = round(conf * 100) / 100.0;
         if (conf >= min_conf) {
-           //TODO:保留结果
-            ans.push_back(Rule{ antecedent, consequent, conf });
+           
+            ans.push_back(move(Rule{ antecedent, consequent, conf }));
             ++it;
         }
         else {
             //如果bcd=>a置信度不满足，则剪枝；即从后件项集中删除该元素
-           it = consequentSet.erase(it);
+            it = consequentSet.erase(it);
         }
     }
 
-    if (!empty(consequentSet)) {
+    if (!empty(consequentTempSet)) {
         consequentNewSet = apriori_gen(consequentSet);
         generateRuleByItemset(itemSet, consequentNewSet, ans, consequent_num + 1, i, itemLength);
     }
@@ -358,14 +349,14 @@ vector<Rule>  generate_associate_rules(vector<  map< ItemSet, int > > L, const d
             for (auto& item : (itemSet.first)) {
                 consequentSet.push_back({ item });
             }
-            generateRuleByItemset(itemSet.first,consequentSet, ans,1,i,i+1);
+            generateRuleByItemset(itemSet.first, consequentSet, ans, 1, i, i + 1);
         }
     }
 
     return ans;
 }
 
-void  visualization(const vector<Rule> &rules) {
+void  visualization(const vector<Rule>& rules) {
     ItemSet antecedent;
     ItemSet consequent;
 
@@ -373,13 +364,13 @@ void  visualization(const vector<Rule> &rules) {
     {
         antecedent = rule.antecedent;
         for (auto& item : antecedent) {
-            cout << item ;
+            cout << item;
             int size = antecedent.size() - 1;
-            if(item == antecedent[size])
+            if (item == antecedent[size])
                 cout << " ";
             else
                 cout << "^";
-        } 
+        }
 
         cout << " => ";
 
@@ -401,19 +392,23 @@ void  visualization(const vector<Rule> &rules) {
 
 int main()
 {
+    /*事务数目:*/
+    int tranSize = 0;
+    int min_sup_count;
     vector < ItemSet > dataSet;
-   
-    dataSet = loadDataset();
-
     high_resolution_clock::time_point beginTime = high_resolution_clock::now();
 
-    generate_Lk(dataSet);
+    dataSet = loadDataset(tranSize);
+    min_sup_count = ceil(tranSize * min_sup_rate);
+    cout << min_sup_count << endl;
+    generate_Lk(dataSet, min_sup_count);
     vector<Rule> rules = generate_associate_rules(L,min_conf);
     visualization(rules);
-
+  
     high_resolution_clock::time_point endTime = high_resolution_clock::now();
     milliseconds timeInterval = std::chrono::duration_cast<milliseconds>(endTime - beginTime);
     std::cout << timeInterval.count() << "ms\n";
+    
     return 0;
 }
 
