@@ -42,10 +42,10 @@ void visualization(const vector<Rule>& rules);
 vector < ItemSet >  loadDataset(int &tranSize)
 {
     vector < ItemSet >  dataSet;
-   string filePath = "mushroom.dat";
+    string filePath = "mushroom.dat";
    //string filePath = "retail.dat";
     
-    ifstream fs(filePath, ios::in);
+  ifstream fs(filePath, ios::in);
     string line;
 
     while (getline(fs,line)) {
@@ -62,7 +62,7 @@ vector < ItemSet >  loadDataset(int &tranSize)
     }
 
     //!!!数据必须按照字典序排序
-   /* ItemSet s1 = { "I1","I2","I4","I5","I6" };
+ /*  ItemSet s1 = { "I1","I2","I4","I5","I6" };
     ItemSet s2 = { "I2","I4","I6","I7","I8" };
     ItemSet s3 = { "I2","I3","I6" ,"I7","I8" };
     ItemSet s4 = { "I1","I2","I4","I6","I7" };
@@ -72,7 +72,7 @@ vector < ItemSet >  loadDataset(int &tranSize)
     ItemSet s8 = { "I1","I2","I3","I5" ,"I6" };
     ItemSet s9 = { "I1","I2","I3" ,"I4","I7" };
 
-    ItemSet s1 = { "I1","I2","I5" };
+       ItemSet s1 = { "I1","I2","I5" };
     ItemSet s2 = { "I2","I4" };
     ItemSet s3 = { "I2","I3" };
     ItemSet s4 = { "I1","I2","I4" };
@@ -146,7 +146,7 @@ vector< ItemSet > create_C2(map < ItemSet, int >& L1) {
     return C2;
 }
 
-bool is_apriori(ItemSet ProItemSet,map < ItemSet, int >& Lk) {
+bool is_apriori(const ItemSet &ProItemSet,map < ItemSet, int >& Lk) {
     for (auto& item : Lk) {
         if (ProItemSet == item.first) {
             return true;
@@ -160,13 +160,14 @@ vector<ItemSet> create_Ck(map < ItemSet, int >& Lk, int k) {
     vector< ItemSet > Ck;
     vector< ItemSet >::iterator  it_Ck;
     /*key是(k - 1)项，value是第k项*/
-    map < ItemSet, ItemSet > trie_ItemSet;
+    map < ItemSet, ItemSet > trie_ItemSet = {};
     ItemSet::iterator it_key,it_value, it_value1;
     string lastElement;
     vector<string> key;
     vector<string> tmp,tmp2;
 
-    if (k == 2) {
+    // k + 1是当前要生成的项集
+    if (k == 1) {
         return create_C2(Lk);
     }
   
@@ -193,15 +194,13 @@ vector<ItemSet> create_Ck(map < ItemSet, int >& Lk, int k) {
             for (it_value = (item.second).begin(); it_value != (item.second).end() - 1; it_value++) {
                 for (it_value1 = it_value + 1; it_value1 != (item.second).end(); it_value1++) {
                     tmp = { *it_value ,*it_value1 };
-                    //if (is_apriori(tmp, Lk)) {
+                    //当 k = 3时候，后缀存储的是二项集
+                    if ((k == 2 && is_apriori(tmp, Lk)) || k > 2) {
                         tmp2 = key;
                         tmp2.push_back(*it_value);
                         tmp2.push_back(*it_value1);
                         Ck.push_back(tmp2);
-                   /* }
-                    else {
-                        continue;
-                    }*/
+                    }
                 }
             }
         }
@@ -277,15 +276,16 @@ vector<  map< ItemSet, int > > generate_Lk(vector < ItemSet >& dataSet,int min_s
     L.push_back(move(L1));
     size_t k = 1;
     while (!L[k - 1].empty()) {
-        Ck = create_Ck(L[k - 1], k + 1);
+        Ck = create_Ck(L[k - 1], k);
+        if (Ck.empty()) {
+            break;
+        }
         Lk = generateKFrequentSet(Ck, dataSet, k + 1, min_sup_count);
-        //if (!Lk.empty()) {
-        if (!empty(Lk)) {
+        if (!Lk.empty()) {
             L.push_back(move(Lk));
-            k++;
+            ++k;
         }
         else {
-            cout << "k" << k << endl;
             break;
         }
     }
@@ -326,14 +326,14 @@ void generateRuleByItemset( vector<  map< ItemSet, int > >& L,
     ItemSet consequent;
     ItemSet antecedent;
     vector<ItemSet> consequentNewSet = {};
-    vector<ItemSet> consequentTempSet;
+    vector<ItemSet> consequentTempSet = {};
     vector<ItemSet>::iterator it;
     int antecedent_num;
 
     //前件至少有1个，前件加后件如果大于当前事务，则无法生成
     if (consequent_num + 1 > itemLength) return;
 
-    for (it = consequentSet.begin(); it != consequentSet.end();)
+    for (it = consequentSet.begin(); it != consequentSet.end();  ++it)
     {
         antecedent = {};
         consequent = (*it);
@@ -344,16 +344,16 @@ void generateRuleByItemset( vector<  map< ItemSet, int > >& L,
         conf = round(conf * 100) / 100.0;
         if (conf >= min_conf) {
             ans.push_back(move(Rule{ antecedent, consequent, conf }));
-            ++it;
+            consequentTempSet.push_back(consequent);
         }
-        else {
-            //如果bcd=>a置信度不满足，则剪枝；即从后件项集中删除该元素
-            it = consequentSet.erase(it);
-        }
+        //else {
+        //    //如果bcd=>a置信度不满足，则剪枝；即从后件项集中删除该元素
+        //    it = consequentSet.erase(it);
+        //}
     }
 
-    if (!empty(consequentSet)) {
-        consequentNewSet = apriori_gen(consequentSet);
+    if (!empty(consequentTempSet)) {
+        consequentNewSet = apriori_gen(consequentTempSet);
         generateRuleByItemset(L,itemSet, consequentNewSet, ans, consequent_num + 1, i, itemLength);
     }
 }
@@ -379,34 +379,36 @@ vector<Rule>  generate_associate_rules( vector<  map< ItemSet, int > >&L, const 
 void  visualization(const vector<Rule>& rules) {
     ItemSet antecedent;
     ItemSet consequent;
+    ofstream ofs("output.txt");
+
 
     for (auto& rule : rules)
     {
         antecedent = rule.antecedent;
         for (auto& item : antecedent) {
-            cout << item;
+            ofs << item;
             int size = antecedent.size() - 1;
             if (item == antecedent[size])
-                cout << " ";
+                ofs << " ";
             else
-                cout << "^";
+                ofs << "^";
         }
 
-        cout << " => ";
+        ofs << " => ";
 
         consequent = rule.consequent;
         for (auto& item : consequent) {
-            cout << item;
+            ofs << item;
             int size = consequent.size() - 1;
             if (item == consequent[size])
-                cout << " ";
+                ofs << " ";
             else
-                cout << "^";
+                ofs << "^";
         }
 
-        cout << "   confidence  : " << rule.conf;
+        ofs << "   confidence  : " << rule.conf;
 
-        cout << endl;
+        ofs << endl;
     }
 }
 
